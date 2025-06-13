@@ -1,0 +1,13 @@
+==== postgres terminal ====
+some commands so i dont have to keep looking them up
+
+---- prompts overview ----
+postgres=#	// superuser
+psotgres=>	// regular user
+
+login as user to a db:		psql -U username -d database
+login as root and go into db:	sudo -u postgres psql
+				\c dbname
+list tables:			\dt
+list dbs:			\l
+list tables structure:		\d tablename

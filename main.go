@@ -17,60 +17,66 @@ const (
 	dbname		= "db"
 )
 
+type User struct {
+	ID		int64
+	Username	string
+	ChosenName	string
+	Email		string
+	PasswordHash	string
+}
 
 func main() {
-	// db stuff
-	// postgres connection string
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname,)
-
-	// open db connection
-	db, err := sql.Open("postgres", psqlInfo)
+	// init db
+	db, err := init_db()
 	if err != nil {
-		log.Fatal("error opening db:", err)
+		log.Fatal("connection to db failed:", err)
 	}
 	defer db.Close()
 
-	// verify connection
-	err = db.Ping()
-	if err != nil {
-		log.Fatal(err)
+	// add new user sample
+	newUser := &User {
+		Username:	"0",
+		ChosenName:	"sarsomardo",
+		Email:		"fake@fake.com",
+		PasswordHash:	"123encrypted",
 	}
-	fmt.Println("successfully connected to db")
-
-	// create table
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS items (
-		id SERIAL PRIMARY KEY,
-		name TEXT NOT NULL
-		);`)
+	err = insert_user(db, newUser)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("insert failed:", err)
 	}
-	fmt.Println("table created or already exists")
-
-	// insert
-	var lastInsertId int
-	err = db.QueryRow(`INSERT INTO items(name) VALUES ($1) RETURNING id`, "foo").Scan(&lastInsertId)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("inserted record id:", lastInsertId)
-
-	// read
-	var name string
-	err = db.QueryRow(`SELECT name FROM items WHERE id=$1`, lastInsertId).Scan(&name)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("read record:", name)
-
-
-
+	fmt.Println("added user with id", newUser.ID)
 
 	// http stuff
 	http.HandleFunc("/health", health)
 	http.HandleFunc("/", handler)
-
 	http.ListenAndServe(":8080", nil)
+}
+
+func init_db() (*sql.DB, error) {
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+
+	db, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	// check if connection was successful
+	err = db.Ping()
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
+func insert_user(db *sql.DB, u *User) error {
+	query := `
+		INSERT INTO users (username, chosen_name, email, password_hash)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id;
+	`
+	err := db.QueryRow(query, u.Username, u.ChosenName, u.Email, u.PasswordHash).Scan(&u.ID)
+	return err;
 }
 
 func health(w http.ResponseWriter, r *http.Request) {
